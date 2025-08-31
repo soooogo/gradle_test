@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB接続確認ページ</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .data-display {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #dee2e6;
+        }
+        .user-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .timestamp {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            height: 100px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 DB接続確認ページ</h1>
+    
+    <div class="container">
+        <h2>📊 接続状況</h2>
+        <div id="connectionStatus" class="status info">
+            接続確認中...
+        </div>
+        <button onclick="checkConnection()">接続確認</button>
+        <button onclick="getUsers()">ユーザー一覧取得</button>
+        <button onclick="getLogs()">ログ一覧取得</button>
+    </div>
+
+    <div class="container">
+        <h2>👥 ユーザー管理</h2>
+        <div class="form-group">
+            <label for="userName">名前:</label>
+            <input type="text" id="userName" placeholder="ユーザー名を入力">
+        </div>
+        <div class="form-group">
+            <label for="userEmail">メールアドレス:</label>
+            <input type="email" id="userEmail" placeholder="メールアドレスを入力">
+        </div>
+        <div class="form-group">
+            <label for="userPhone">電話番号:</label>
+            <input type="text" id="userPhone" placeholder="電話番号を入力">
+        </div>
+        <button onclick="createUser()">ユーザー作成</button>
+        <button onclick="getUsers()">ユーザー一覧更新</button>
+        
+        <div id="usersDisplay" class="data-display">
+            <h3>ユーザー一覧</h3>
+            <div id="usersList">データを取得してください</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📝 ログ管理</h2>
+        <div class="form-group">
+            <label for="logLevel">ログレベル:</label>
+            <select id="logLevel">
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+                <option value="DEBUG">DEBUG</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="logMessage">メッセージ:</label>
+            <textarea id="logMessage" placeholder="ログメッセージを入力"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="logUserId">ユーザーID (オプション):</label>
+            <input type="number" id="logUserId" placeholder="ユーザーIDを入力（空欄可）">
+        </div>
+        <button onclick="createLog()">ログ作成</button>
+        <button onclick="getLogs()">ログ一覧更新</button>
+        
+        <div id="logsDisplay" class="data-display">
+            <h3>ログ一覧</h3>
+            <div id="logsList">データを取得してください</div>
+        </div>
+    </div>
+
+    <script>
+        // ページ読み込み時に接続確認
+        window.onload = function() {
+            checkConnection();
+        };
+
+        // 接続確認
+        async function checkConnection() {
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = '接続確認中...';
+
+            try {
+                const response = await fetch('/api/users');
+                if (response.ok) {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ DB接続成功！フロントエンドとバックエンドが正常に接続されています。';
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = '❌ DB接続エラー: ' + response.status + ' ' + response.statusText;
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ 接続エラー: ' + error.message;
+            }
+        }
+
+        // ユーザー一覧取得
+        async function getUsers() {
+            const usersListDiv = document.getElementById('usersList');
+            usersListDiv.innerHTML = 'データ取得中...';
+
+            try {
+                const response = await fetch('/api/users');
+                if (response.ok) {
+                    const users = await response.json();
+                    displayUsers(users);
+                } else {
+                    usersListDiv.innerHTML = 'エラー: ' + response.status + ' ' + response.statusText;
+                }
+            } catch (error) {
+                usersListDiv.innerHTML = 'エラー: ' + error.message;
+            }
+        }
+
+        // ユーザー表示
+        function displayUsers(users) {
+            const usersListDiv = document.getElementById('usersList');
+            if (users.length === 0) {
+                usersListDiv.innerHTML = '<p>ユーザーが存在しません</p>';
+                return;
+            }
+
+            let html = '';
+            users.forEach(user => {
+                const createdTime = new Date(user.createdAt || user.created_timestamp || user.created_at).toLocaleString('ja-JP');
+                const updatedTime = new Date(user.updatedAt || user.updated_timestamp || user.updated_at).toLocaleString('ja-JP');
+                
+                html += `
+                    <div class="user-card">
+                        <h4>${user.name}</h4>
+                        <p><strong>ID:</strong> ${user.id}</p>
+                        <p><strong>メール:</strong> ${user.email}</p>
+                        <p><strong>電話番号:</strong> ${user.phone || '未設定'}</p>
+                        <p class="timestamp"><strong>作成日時:</strong> ${createdTime}</p>
+                        <p class="timestamp"><strong>更新日時:</strong> ${updatedTime}</p>
+                        <button onclick="deleteUser(${user.id})">削除</button>
+                    </div>
+                `;
+            });
+            usersListDiv.innerHTML = html;
+        }
+
+        // ユーザー作成
+        async function createUser() {
+            const name = document.getElementById('userName').value;
+            const email = document.getElementById('userEmail').value;
+            const phone = document.getElementById('userPhone').value;
+
+            if (!name || !email) {
+                alert('名前とメールアドレスは必須です');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email, phone })
+                });
+
+                if (response.ok) {
+                    alert('ユーザーが作成されました');
+                    // フォームをクリア
+                    document.getElementById('userName').value = '';
+                    document.getElementById('userEmail').value = '';
+                    document.getElementById('userPhone').value = '';
+                    // ユーザー一覧を更新
+                    getUsers();
+                } else {
+                    alert('エラー: ' + response.status + ' ' + response.statusText);
+                }
+            } catch (error) {
+                alert('エラー: ' + error.message);
+            }
+        }
+
+        // ユーザー削除
+        async function deleteUser(userId) {
+            if (!confirm('このユーザーを削除しますか？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert('ユーザーが削除されました');
+                    getUsers();
+                } else {
+                    alert('エラー: ' + response.status + ' ' + response.statusText);
+                }
+            } catch (error) {
+                alert('エラー: ' + error.message);
+            }
+        }
+
+        // ログ一覧取得
+        async function getLogs() {
+            const logsListDiv = document.getElementById('logsList');
+            logsListDiv.innerHTML = 'データ取得中...';
+
+            try {
+                const response = await fetch('/api/logs');
+                if (response.ok) {
+                    const logs = await response.json();
+                    displayLogs(logs);
+                } else {
+                    logsListDiv.innerHTML = 'エラー: ' + response.status + ' ' + response.statusText;
+                }
+            } catch (error) {
+                logsListDiv.innerHTML = 'エラー: ' + error.message;
+            }
+        }
+
+        // ログ表示
+        function displayLogs(logs) {
+            const logsListDiv = document.getElementById('logsList');
+            if (logs.length === 0) {
+                logsListDiv.innerHTML = '<p>ログが存在しません</p>';
+                return;
+            }
+
+            let html = '';
+            logs.forEach(log => {
+                const createdTime = new Date(log.createdTimestamp || log.created_timestamp).toLocaleString('ja-JP');
+                const updatedTime = new Date(log.updatedTimestamp || log.updated_timestamp).toLocaleString('ja-JP');
+                
+                html += `
+                    <div class="user-card">
+                        <h4>${log.level}</h4>
+                        <p><strong>ID:</strong> ${log.id}</p>
+                        <p><strong>メッセージ:</strong> ${log.message}</p>
+                        <p><strong>ユーザーID:</strong> ${log.userId || log.user_id || 'システム'}</p>
+                        <p class="timestamp"><strong>作成日時:</strong> ${createdTime}</p>
+                        <p class="timestamp"><strong>更新日時:</strong> ${updatedTime}</p>
+                    </div>
+                `;
+            });
+            logsListDiv.innerHTML = html;
+        }
+
+        // ログ作成
+        async function createLog() {
+            const level = document.getElementById('logLevel').value;
+            const message = document.getElementById('logMessage').value;
+            const userId = document.getElementById('logUserId').value;
+
+            if (!message) {
+                alert('メッセージは必須です');
+                return;
+            }
+
+            const logData = { level, message };
+            if (userId) {
+                logData.userId = parseInt(userId);
+            }
+
+            try {
+                const response = await fetch('/api/logs', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(logData)
+                });
+
+                if (response.ok) {
+                    alert('ログが作成されました');
+                    // フォームをクリア
+                    document.getElementById('logMessage').value = '';
+                    document.getElementById('logUserId').value = '';
+                    // ログ一覧を更新
+                    getLogs();
+                } else {
+                    alert('エラー: ' + response.status + ' ' + response.statusText);
+                }
+            } catch (error) {
+                alert('エラー: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: gradle-test-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: gradletest
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+      TZ: Asia/Tokyo
+    ports:
+      - "3306:3306"
+    volumes: []
+    networks:
+      - gradle-test-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  app:
+    build: .
+    container_name: gradle-test-app
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/gradletest?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Tokyo
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: password
+      TZ: Asia/Tokyo
+      JAVA_OPTS: -Duser.timezone=Asia/Tokyo
+    networks:
+      - gradle-test-network
+    restart: unless-stopped
+
+# volumes:
+#   mysql_data:  # 永続化ボリュームを無効化
+
+networks:
+  gradle-test-network:
+    driver: bridge
